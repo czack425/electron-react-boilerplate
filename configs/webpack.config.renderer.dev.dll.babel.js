@@ -1,51 +1,35 @@
 /**
  * Builds the DLL for development electron renderer process
  */
-
-import webpack from 'webpack';
 import path from 'path';
+import webpack from 'webpack';
 import merge from 'webpack-merge';
-import baseConfig from './webpack.config.base';
-import { dependencies } from '../package.json';
 import CheckNodeEnv from '../internals/scripts/CheckNodeEnv';
 
-CheckNodeEnv('development');
+import baseConfig from './webpack.config.base';
+import { dependencies } from '../package.json';
 
-const dist = path.join(__dirname, '..', 'dll');
+const NODE_ENV = 'development';
+CheckNodeEnv(NODE_ENV);
+
+const ROOT_DIR = path.join(__dirname, '..');
+const APP_DIR = path.join(ROOT_DIR, 'app');
+const DLL_DIR = path.join(ROOT_DIR, 'dll');
 
 export default merge.smart(baseConfig, {
-  context: path.join(__dirname, '..'),
-
+  mode: NODE_ENV,
   devtool: 'eval',
-
-  mode: 'development',
-
-  target: 'electron-renderer',
-
-  externals: ['fsevents', 'crypto-browserify'],
-
-  /**
-   * Use `module` from `webpack.config.renderer.dev.js`
-   */
-  module: require('./webpack.config.renderer.dev.babel').default.module,
-
   entry: {
     renderer: Object.keys(dependencies || {}),
   },
-
   output: {
-    library: 'renderer',
-    path: dist,
     filename: '[name].dev.dll.js',
+    library: 'renderer',
     libraryTarget: 'var',
+    path: DLL_DIR,
   },
-
+  context: ROOT_DIR,
   plugins: [
-    new webpack.DllPlugin({
-      path: path.join(dist, '[name].json'),
-      name: '[name]',
-    }),
-
     /**
      * Create global constants which can be configured at compile time.
      *
@@ -56,17 +40,24 @@ export default merge.smart(baseConfig, {
      * development checks
      */
     new webpack.EnvironmentPlugin({
-      NODE_ENV: 'development',
+      NODE_ENV,
     }),
-
+    new webpack.DllPlugin({
+      path: path.join(DLL_DIR, '[name].json'),
+      name: '[name]',
+    }),
     new webpack.LoaderOptionsPlugin({
       debug: true,
       options: {
-        context: path.join(__dirname, '..', 'app'),
+        context: APP_DIR,
         output: {
-          path: path.join(__dirname, '..', 'dll'),
+          path: DLL_DIR,
         },
       },
     }),
   ],
+  target: 'electron-renderer',
+  externals: ['fsevents', 'crypto-browserify'],
+  // Use `module` from `webpack.config.renderer.dev.js`
+  module: require('./webpack.config.renderer.dev.babel').default.module,
 });

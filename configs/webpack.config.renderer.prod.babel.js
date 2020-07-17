@@ -1,198 +1,70 @@
 /**
  * Build config for electron renderer process
  */
-
 import path from 'path';
-import webpack from 'webpack';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import OptimizeCSSAssetsPlugin from 'optimize-css-assets-webpack-plugin';
+import TerserPlugin from 'terser-webpack-plugin';
+import webpack from 'webpack';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
 import merge from 'webpack-merge';
-import TerserPlugin from 'terser-webpack-plugin';
-import baseConfig from './webpack.config.base';
 import CheckNodeEnv from '../internals/scripts/CheckNodeEnv';
 import DeleteSourceMaps from '../internals/scripts/DeleteSourceMaps';
 
-CheckNodeEnv('production');
+import baseConfig, { CSSLoader } from './webpack.config.base.renderer';
+
+const NODE_ENV = 'production';
+CheckNodeEnv(NODE_ENV);
 DeleteSourceMaps();
 
+const ROOT_DIR = path.join(__dirname, '..');
+const APP_DIR = path.join(ROOT_DIR, 'app');
+const DIST_DIR = path.join(APP_DIR, 'dist');
+
+const minimizer = [];
+if (!process.env.E2E_BUILD) {
+  minimizer.push(
+    new TerserPlugin({
+      cache: true,
+      parallel: true,
+      sourceMap: true,
+    })
+  );
+  minimizer.push(
+    new OptimizeCSSAssetsPlugin({
+      cssProcessorOptions: {
+        map: {
+          annotation: true,
+          inline: false,
+        },
+      },
+    })
+  );
+}
+
+// Loaders
+const MiniCssLoader = [
+  MiniCssExtractPlugin.loader,
+  merge.smart(CSSLoader, {
+    options: {
+      modules: {
+        localIdentName: '[name]__[local]__[hash:base64:5]',
+      },
+    },
+  }),
+];
+
 export default merge.smart(baseConfig, {
+  mode: NODE_ENV,
   devtool: process.env.DEBUG_PROD === 'true' ? 'source-map' : 'none',
-
-  mode: 'production',
-
-  target: 'electron-preload',
-
-  entry: path.join(__dirname, '..', 'app/index.tsx'),
-
+  entry: {
+    renderer: path.join(APP_DIR, 'index.tsx'),
+  },
   output: {
-    path: path.join(__dirname, '..', 'app/dist'),
+    path: DIST_DIR,
     publicPath: './dist/',
-    filename: 'renderer.prod.js',
+    filename: '[name].prod.js',
   },
-
-  module: {
-    rules: [
-      // Extract all .global.css to style.css as is
-      {
-        test: /\.global\.css$/,
-        use: [
-          {
-            loader: MiniCssExtractPlugin.loader,
-            options: {
-              publicPath: './',
-            },
-          },
-          {
-            loader: 'css-loader',
-            options: {
-              sourceMap: true,
-            },
-          },
-        ],
-      },
-      // Pipe other styles through css modules and append to style.css
-      {
-        test: /^((?!\.global).)*\.css$/,
-        use: [
-          {
-            loader: MiniCssExtractPlugin.loader,
-          },
-          {
-            loader: 'css-loader',
-            options: {
-              modules: {
-                localIdentName: '[name]__[local]__[hash:base64:5]',
-              },
-              sourceMap: true,
-            },
-          },
-        ],
-      },
-      // Add SASS support  - compile all .global.scss files and pipe it to style.css
-      {
-        test: /\.global\.(scss|sass)$/,
-        use: [
-          {
-            loader: MiniCssExtractPlugin.loader,
-          },
-          {
-            loader: 'css-loader',
-            options: {
-              sourceMap: true,
-              importLoaders: 1,
-            },
-          },
-          {
-            loader: 'sass-loader',
-            options: {
-              sourceMap: true,
-            },
-          },
-        ],
-      },
-      // Add SASS support  - compile all other .scss files and pipe it to style.css
-      {
-        test: /^((?!\.global).)*\.(scss|sass)$/,
-        use: [
-          {
-            loader: MiniCssExtractPlugin.loader,
-          },
-          {
-            loader: 'css-loader',
-            options: {
-              modules: {
-                localIdentName: '[name]__[local]__[hash:base64:5]',
-              },
-              importLoaders: 1,
-              sourceMap: true,
-            },
-          },
-          {
-            loader: 'sass-loader',
-            options: {
-              sourceMap: true,
-            },
-          },
-        ],
-      },
-      // WOFF Font
-      {
-        test: /\.woff(\?v=\d+\.\d+\.\d+)?$/,
-        use: {
-          loader: 'url-loader',
-          options: {
-            limit: 10000,
-            mimetype: 'application/font-woff',
-          },
-        },
-      },
-      // WOFF2 Font
-      {
-        test: /\.woff2(\?v=\d+\.\d+\.\d+)?$/,
-        use: {
-          loader: 'url-loader',
-          options: {
-            limit: 10000,
-            mimetype: 'application/font-woff',
-          },
-        },
-      },
-      // TTF Font
-      {
-        test: /\.ttf(\?v=\d+\.\d+\.\d+)?$/,
-        use: {
-          loader: 'url-loader',
-          options: {
-            limit: 10000,
-            mimetype: 'application/octet-stream',
-          },
-        },
-      },
-      // EOT Font
-      {
-        test: /\.eot(\?v=\d+\.\d+\.\d+)?$/,
-        use: 'file-loader',
-      },
-      // SVG Font
-      {
-        test: /\.svg(\?v=\d+\.\d+\.\d+)?$/,
-        use: {
-          loader: 'url-loader',
-          options: {
-            limit: 10000,
-            mimetype: 'image/svg+xml',
-          },
-        },
-      },
-      // Common Image Formats
-      {
-        test: /\.(?:ico|gif|png|jpg|jpeg|webp)$/,
-        use: 'url-loader',
-      },
-    ],
-  },
-
-  optimization: {
-    minimizer: process.env.E2E_BUILD
-      ? []
-      : [
-          new TerserPlugin({
-            parallel: true,
-            sourceMap: true,
-            cache: true,
-          }),
-          new OptimizeCSSAssetsPlugin({
-            cssProcessorOptions: {
-              map: {
-                inline: false,
-                annotation: true,
-              },
-            },
-          }),
-        ],
-  },
-
   plugins: [
     /**
      * Create global constants which can be configured at compile time.
@@ -204,19 +76,74 @@ export default merge.smart(baseConfig, {
      * development checks
      */
     new webpack.EnvironmentPlugin({
-      NODE_ENV: 'production',
+      NODE_ENV,
       DEBUG_PROD: false,
       E2E_BUILD: false,
     }),
-
     new MiniCssExtractPlugin({
-      filename: 'style.css',
+      filename: 'css/[name].css',
     }),
-
     new BundleAnalyzerPlugin({
       analyzerMode:
         process.env.OPEN_ANALYZER === 'true' ? 'server' : 'disabled',
       openAnalyzer: process.env.OPEN_ANALYZER === 'true',
     }),
   ],
+  optimization: {
+    minimizer,
+  },
+  target: 'electron-preload',
+  module: {
+    rules: [
+      // Styles support - CSS - Extract all .global.css to style.css as is
+      {
+        test: /\.global\.css$/,
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              publicPath: './',
+            },
+          },
+          CSSLoader,
+        ],
+      },
+      // Styles support - CSS - Pipe other styles through css modules and append to style.css
+      {
+        test: /^((?!\.global).)*\.css$/,
+        use: MiniCssLoader,
+      },
+      // Styles support - SASS/SCSS - compile all .global.s[ac]ss files and pipe it to style.css
+      {
+        test: /\.global\.(scss|sass)$/,
+        use: [
+          MiniCssExtractPlugin.loader,
+          merge.smart(CSSLoader, {
+            options: {
+              importLoaders: 1,
+            },
+          }),
+          {
+            loader: 'sass-loader',
+            options: {
+              sourceMap: true,
+            },
+          },
+        ],
+      },
+      // Styles support - SASS/SCSS - compile all other .s[ac]ss files and pipe it to style.css
+      {
+        test: /^((?!\.global).)*\.(scss|sass)$/,
+        use: [
+          ...MiniCssLoader,
+          {
+            loader: 'sass-loader',
+            options: {
+              sourceMap: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
 });

@@ -1,9 +1,5 @@
 module.exports = {
   extends: 'erb/typescript',
-  rules: {
-    // A temporary hack related to IDE not resolving correct package.json
-    'import/no-extraneous-dependencies': 'off',
-  },
   parserOptions: {
     ecmaVersion: 2020,
     sourceType: 'module',
@@ -12,6 +8,9 @@ module.exports = {
     createDefaultProgram: true,
   },
   settings: {
+    'import/parsers': {
+      '@typescript-eslint/parser': ['.ts', '.tsx'],
+    },
     'import/resolver': {
       // See https://github.com/benmosher/eslint-plugin-import/issues/1396#issuecomment-575727774 for line below
       node: {},
@@ -19,8 +18,17 @@ module.exports = {
         config: require.resolve('./configs/webpack.config.eslint.js'),
       },
     },
-    'import/parsers': {
-      '@typescript-eslint/parser': ['.ts', '.tsx'],
-    },
+  },
+  rules: {
+    /*
+     * "off" or 0 - turn the rule off
+     * "warn" or 1 - turn the rule on as a warning (doesn't affect exit code)
+     * "error" or 2 - turn the rule on as an error (exit code is 1 when triggered)
+     */
+    // Run `yarn get-rules` and rename `configs/eslint_rules-tmp` to `configs/eslint_rules` before uncommenting
+    // eslint-disable-next-line global-require
+    // ...require('./configs/eslint_rules'),
+    // A temporary hack related to IDE not resolving correct package.json
+    'import/no-extraneous-dependencies': 0,
   },
 };

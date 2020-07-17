@@ -9,11 +9,17 @@
  * `./app/main.prod.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, WebPreferences } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 
+// Config
+const port = process.env.PORT || 1212;
+const isDevelopment = process.env.NODE_ENV !== 'production';
+let urlPrefix = `file://${__dirname}/dist`;
+
+// Updating
 export default class AppUpdater {
   constructor() {
     log.transports.file.level = 'info';
@@ -22,6 +28,7 @@ export default class AppUpdater {
   }
 }
 
+// App Window Setup
 let mainWindow: BrowserWindow | null = null;
 
 if (process.env.NODE_ENV === 'production') {
@@ -29,11 +36,9 @@ if (process.env.NODE_ENV === 'production') {
   sourceMapSupport.install();
 }
 
-if (
-  process.env.NODE_ENV === 'development' ||
-  process.env.DEBUG_PROD === 'true'
-) {
+if (isDevelopment || process.env.DEBUG_PROD === 'true') {
   require('electron-debug')();
+  urlPrefix = `http://localhost:${port}/dist`;
 }
 
 const installExtensions = async () => {
@@ -46,50 +51,61 @@ const installExtensions = async () => {
   ).catch(console.log);
 };
 
+// Window Creation
 const createWindow = async () => {
-  if (
-    process.env.NODE_ENV === 'development' ||
-    process.env.DEBUG_PROD === 'true'
-  ) {
+  if (isDevelopment || process.env.DEBUG_PROD === 'true') {
     await installExtensions();
   }
 
+  // Set WebPreferences
+  const webPreferences: WebPreferences = {
+    enableRemoteModule: false,
+  };
+  if (
+    (isDevelopment || process.env.E2E_BUILD === 'true') &&
+    process.env.ERB_SECURE !== 'true'
+  ) {
+    webPreferences.nodeIntegration = true;
+  } else {
+    webPreferences.preload = path.join(__dirname, 'dist', 'renderer.prod.js');
+  }
+
+  // Create the browser window
   mainWindow = new BrowserWindow({
-    show: false,
+    height: 768,
     width: 1024,
-    height: 728,
-    webPreferences:
-      (process.env.NODE_ENV === 'development' ||
-        process.env.E2E_BUILD === 'true') &&
-      process.env.ERB_SECURE !== 'true'
-        ? {
-            nodeIntegration: true,
-          }
-        : {
-            preload: path.join(__dirname, 'dist/renderer.prod.js'),
-          },
+    show: false,
+    webPreferences,
   });
 
-  mainWindow.loadURL(`file://${__dirname}/app.html`);
+  // Load content
+  mainWindow.loadURL(`${urlPrefix}/app.html`);
 
-  // @TODO: Use 'ready-to-show' event
-  //        https://github.com/electron/electron/blob/master/docs/api/browser-window.md#using-ready-to-show-event
-  mainWindow.webContents.on('did-finish-load', () => {
+  // Don't show until we are ready and loaded
+  mainWindow.once('ready-to-show', () => {
     if (!mainWindow) {
       throw new Error('"mainWindow" is not defined');
     }
+
     if (process.env.START_MINIMIZED) {
       mainWindow.minimize();
     } else {
       mainWindow.show();
       mainWindow.focus();
     }
+
+    // Open the DevTools automatically if developing
+    if (isDevelopment) {
+      mainWindow.webContents.openDevTools();
+    }
   });
 
+  // Emitted when the window is closed
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 
+  // Build and add app menu
   const menuBuilder = new MenuBuilder(mainWindow);
   menuBuilder.buildMenu();
 
@@ -101,7 +117,6 @@ const createWindow = async () => {
 /**
  * Add event listeners...
  */
-
 app.on('window-all-closed', () => {
   // Respect the OSX convention of having the application in memory even
   // after all windows have been closed
@@ -110,10 +125,13 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Create main BrowserWindow when electron is ready
 app.on('ready', createWindow);
 
 app.on('activate', () => {
   // On macOS it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
-  if (mainWindow === null) createWindow();
+  if (mainWindow === null) {
+    createWindow();
+  }
 });
