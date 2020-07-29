@@ -4,7 +4,7 @@
 import path from 'path';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import webpack from 'webpack';
-import merge from 'webpack-merge';
+import { merge } from 'webpack-merge';
 
 import baseConfig from './webpack.config.base';
 
@@ -15,7 +15,7 @@ const APP_DIR = path.join(ROOT_DIR, 'app');
 
 // Shared Loaders
 const URL_LIMIT = 10 * 1024;
-const fontLoader = {
+const FontLoader = {
   loader: 'url-loader',
   options: {
     limit: URL_LIMIT,
@@ -35,7 +35,7 @@ export const CSSLoader = {
   },
 };
 
-export default merge.smart(baseConfig, {
+export default merge(baseConfig, {
   mode: NODE_ENV,
   devtool: 'inline-source-map',
   plugins: [
@@ -49,16 +49,15 @@ export default merge.smart(baseConfig, {
       template: path.join(APP_DIR, 'app.html'),
       hash: true,
       xhtml: true,
-      chunks: ['dev-loader', 'dll', 'renderer'],
+      chunks: ['requirements', 'dev-loader', 'dll', 'renderer'],
     }),
   ],
-  target: 'electron-renderer',
   module: {
     rules: [
       // WOFF Font
       {
         test: /\.woff(\?v=\d+\.\d+\.\d+)?$/,
-        use: merge.smart(fontLoader, {
+        use: merge(FontLoader, {
           options: {
             mimetype: 'font/woff',
           },
@@ -67,7 +66,7 @@ export default merge.smart(baseConfig, {
       // WOFF2 Font
       {
         test: /\.woff2(\?v=\d+\.\d+\.\d+)?$/,
-        use: merge.smart(fontLoader, {
+        use: merge(FontLoader, {
           options: {
             mimetype: 'font/woff2',
           },
@@ -76,7 +75,7 @@ export default merge.smart(baseConfig, {
       // TTF Font
       {
         test: /\.ttf(\?v=\d+\.\d+\.\d+)?$/,
-        use: merge.smart(fontLoader, {
+        use: merge(FontLoader, {
           options: {
             mimetype: 'font/ttf',
           },
@@ -85,7 +84,7 @@ export default merge.smart(baseConfig, {
       // EOT Font
       {
         test: /\.eot(\?v=\d+\.\d+\.\d+)?$/,
-        use: merge.smart(fontLoader, {
+        use: merge(FontLoader, {
           options: {
             mimetype: 'application/vnd.ms-fontobject',
           },

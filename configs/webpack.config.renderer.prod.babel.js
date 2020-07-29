@@ -7,7 +7,7 @@ import OptimizeCSSAssetsPlugin from 'optimize-css-assets-webpack-plugin';
 import TerserPlugin from 'terser-webpack-plugin';
 import webpack from 'webpack';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
-import merge from 'webpack-merge';
+import { merge } from 'webpack-merge';
 import CheckNodeEnv from '../internals/scripts/CheckNodeEnv';
 import DeleteSourceMaps from '../internals/scripts/DeleteSourceMaps';
 
@@ -42,22 +42,11 @@ if (!process.env.E2E_BUILD) {
   );
 }
 
-// Loaders
-const MiniCssLoader = [
-  MiniCssExtractPlugin.loader,
-  merge.smart(CSSLoader, {
-    options: {
-      modules: {
-        localIdentName: '[name]__[local]__[hash:base64:5]',
-      },
-    },
-  }),
-];
-
-export default merge.smart(baseConfig, {
+export default merge(baseConfig, {
   mode: NODE_ENV,
   devtool: process.env.DEBUG_PROD === 'true' ? 'source-map' : 'none',
   entry: {
+    requirements: ['core-js', 'regenerator-runtime/runtime'],
     renderer: path.join(APP_DIR, 'index.tsx'),
   },
   output: {
@@ -92,7 +81,7 @@ export default merge.smart(baseConfig, {
   optimization: {
     minimizer,
   },
-  target: 'electron-preload',
+  target: process.env.E2E_BUILD ? 'electron-renderer' : 'electron-preload',
   module: {
     rules: [
       // Styles support - CSS - Extract all .global.css to style.css as is
@@ -111,14 +100,23 @@ export default merge.smart(baseConfig, {
       // Styles support - CSS - Pipe other styles through css modules and append to style.css
       {
         test: /^((?!\.global).)*\.css$/,
-        use: MiniCssLoader,
+        use: [
+          MiniCssExtractPlugin.loader,
+          merge(CSSLoader, {
+            options: {
+              modules: {
+                localIdentName: '[name]__[local]__[hash:base64:5]',
+              },
+            },
+          }),
+        ],
       },
       // Styles support - SASS/SCSS - compile all .global.s[ac]ss files and pipe it to style.css
       {
         test: /\.global\.(scss|sass)$/,
         use: [
           MiniCssExtractPlugin.loader,
-          merge.smart(CSSLoader, {
+          merge(CSSLoader, {
             options: {
               importLoaders: 1,
             },
@@ -135,7 +133,15 @@ export default merge.smart(baseConfig, {
       {
         test: /^((?!\.global).)*\.(scss|sass)$/,
         use: [
-          ...MiniCssLoader,
+          MiniCssExtractPlugin.loader,
+          merge(CSSLoader, {
+            options: {
+              importLoaders: 1,
+              modules: {
+                localIdentName: '[name]__[local]__[hash:base64:5]',
+              },
+            },
+          }),
           {
             loader: 'sass-loader',
             options: {

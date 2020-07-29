@@ -8,6 +8,8 @@
  * When running `yarn build` or `yarn build-main`, this file is compiled to
  * `./app/main.prod.js` using webpack. This gives us some performance wins.
  */
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
 import path from 'path';
 import { app, BrowserWindow, WebPreferences } from 'electron';
 import { autoUpdater } from 'electron-updater';
@@ -17,7 +19,9 @@ import MenuBuilder from './menu';
 // Config
 const port = process.env.PORT || 1212;
 const isDevelopment = process.env.NODE_ENV !== 'production';
-let urlPrefix = `file://${__dirname}/dist`;
+const ROOT_DIR = __dirname;
+const DIST_DIR = path.join(ROOT_DIR, 'dist');
+let urlPrefix = `file://${DIST_DIR}`;
 
 // Updating
 export default class AppUpdater {
@@ -125,8 +129,12 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Create main BrowserWindow when electron is ready
-app.on('ready', createWindow);
+if (process.env.E2E_BUILD === 'true') {
+  // eslint-disable-next-line promise/catch-or-return
+  app.whenReady().then(createWindow);
+} else {
+  app.on('ready', createWindow);
+}
 
 app.on('activate', () => {
   // On macOS it's common to re-create a window in the app when the

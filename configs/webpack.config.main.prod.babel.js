@@ -5,7 +5,7 @@ import path from 'path';
 import TerserPlugin from 'terser-webpack-plugin';
 import webpack from 'webpack';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
-import merge from 'webpack-merge';
+import { merge } from 'webpack-merge';
 import CheckNodeEnv from '../internals/scripts/CheckNodeEnv';
 import DeleteSourceMaps from '../internals/scripts/DeleteSourceMaps';
 
@@ -29,7 +29,7 @@ if (!process.env.E2E_BUILD) {
   );
 }
 
-export default merge.smart(baseConfig, {
+export default merge(baseConfig, {
   mode: NODE_ENV,
   devtool: process.env.DEBUG_PROD === 'true' ? 'source-map' : 'none',
   entry: './app/main.dev.ts',

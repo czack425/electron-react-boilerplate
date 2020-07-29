@@ -3,7 +3,7 @@
  */
 import path from 'path';
 import webpack from 'webpack';
-import merge from 'webpack-merge';
+import { merge } from 'webpack-merge';
 import CheckNodeEnv from '../internals/scripts/CheckNodeEnv';
 
 import baseConfig from './webpack.config.base';
@@ -16,7 +16,7 @@ const ROOT_DIR = path.join(__dirname, '..');
 const APP_DIR = path.join(ROOT_DIR, 'app');
 const DLL_DIR = path.join(ROOT_DIR, 'dll');
 
-export default merge.smart(baseConfig, {
+export default merge(baseConfig, {
   mode: NODE_ENV,
   devtool: 'eval',
   entry: {
